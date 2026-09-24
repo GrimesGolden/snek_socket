@@ -44,7 +44,7 @@ def  menu(message):
 
 def get_message():
     # This function exists to recieve a proper message under 256 chars
-    # Empty input is also rejected.
+    # Empty input and non-ASCII characters are rejected.
     message = (input("Enter your message: "))
 
     if (len(message) > MAX_COUNT):
@@ -57,6 +57,11 @@ def get_message():
         print("Error: no empty messages allowed");
         print(f"Using default message: {message}")
         return message
+    elif not message.isascii():
+        message = "Hello, world!"
+        print("Error: only ASCII characters are allowed.");
+        print(f"Using default message: {message}")
+        return message
     else:
         print("Message accepted: ", message)
         return message
@@ -64,19 +69,47 @@ def get_message():
 
 
 # Create a socket object, the with..as format just makes a clean open and exit
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    print("Welcome to Group Two's client!")
-    # Connect to the server =
-    s.connect((HOST, PORT))
-    print("Connected to the server succesfully")
-    
-    # The message starts out empty
-    # decode is True if we want to decode a message, False for encode()
+print("Welcome to Group Two's client!")
+
+# Will continue to try to connect until it succeeds, or the user chooses to exit
+while True:
+    # Sets the socket to None so we can check if it was created if a connection error occurs
+    s = None
+
+    try:
+        # IPv4 TCP socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Attempts to connect the server's address and port
+        s.connect((HOST, PORT))
+        print("Connected to the server successfully")
+        break
+
+    except ConnectionRefusedError:
+        # Usually occurs when the server isn't running
+        print(f"Error: Unable to connect to the server at {HOST}:{PORT}.")
+        print("Make sure the server is running.")
+
+    except OSError as error:
+        # Handles other OS-related errors, such as network issues or invalid addresses
+        print(f"Network error: {error}")
+
+    # Closes the unsuccessful socket if it was created, to free up resources
+    if s is not None:
+        s.close()
+
+    # Enables the user to retry the connection or exit the program gracefully
+    retry = input("Do you want to retry connecting? (y/n): ")
+    if retry not in ("y", "Y"):
+        print("Exiting program.")
+        sys.exit(0)
+
+# Closes the socket automatically when the client is done or exits this block
+with s:
+    # Stores the latest encoded message for decoding
     message = None
-    decode = False # Naturally we can only start by encoding, theres no message to decode.  
+    # False means an encode request, True means a decode request
+    decode = False
     
-    # This is the really important logical loop
-    # It could have been put inside a function huh
     while True:
         message, decode = menu(message)
 
@@ -106,6 +139,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         # It's turning it back to ascii, not decoding it in context of the assignment
         # (Thats just the coincidental name of the function)
         response_text = response.decode("ascii")
+        if response_text.startswith("Error:"):
+            print(f"Server response: {response_text}")
+            message = None
+            continue
 
         # We already know what our choice was
         # So the server doesn't even need to send back a flag

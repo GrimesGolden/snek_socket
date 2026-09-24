@@ -2,6 +2,8 @@ import socket
 
 HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
 PORT = 12345  # Port to listen on (non-privileged ports are > 1023)
+MAX_COUNT = 256 # Chars can't go over 256
+
 
 # Arguments passed to socket are constants
 # They specify the address family, and the socket type.
@@ -79,6 +81,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
             # Turn it from bytes back into ascii text
             message = message_slice.decode("ascii")
+            if len(message) > MAX_COUNT:
+                error_message = "Error: Message cannot exceed 256 characters."
+                print(error_message)
+                conn.sendall(error_message.encode("ascii"))
+                continue
 
             # But here the flag isn't for aesthetics
             # It very much tells us what operation to perform
